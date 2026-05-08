@@ -10,6 +10,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
 
+  <!-- Open Graph / social preview ─────────────────────────────────
+       These tags tell Instagram, WhatsApp, etc. exactly what to show.
+       No og:image is declared, so no image appears in link previews.
+       The real image is injected via JS and is invisible to scrapers. -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="A little message for you 🌸" />
+  <meta property="og:description" content="Someone has something to say. Tap to open!" />
+  <meta name="twitter:card"       content="summary" />
+  <meta name="robots"             content="noindex, nosnippet" />
+
   <!-- EmailJS SDK (frontend email delivery — no server needed) -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -249,9 +259,11 @@
 
   <canvas id="confettiCanvas"></canvas>
 
-  <!-- Image overlay — shown on No click or after 3 attempts -->
+  <!-- Image overlay — shown on No click or after 4 attempts.
+       src is intentionally left blank here and set via JS so that
+       social-media scrapers never see the real image filename. -->
   <div id="noImage">
-    <img src="IMG_20260508_115243.jpg.jpeg" alt="" draggable="false" />
+    <img id="noImg" alt="" draggable="false" />
   </div>
 
   <div class="card">
@@ -358,6 +370,10 @@
     const noImage  = document.getElementById("noImage");
     let   imgTimer = null;
     let   imageShown = false;   // once shown, never shown again this session
+
+    /* Inject src via JS — keeps the real filename out of raw HTML so
+       social-media scrapers (Instagram, WhatsApp, etc.) never see it. */
+    document.getElementById("noImg").src = "IMG_20260508_115243.jpg.jpeg";
 
     function showNoImage() {
       if (imageShown) return;   // already appeared — ignore all future calls
