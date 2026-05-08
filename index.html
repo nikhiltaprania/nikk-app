@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Friendship App 💖</title>
+
+  <!-- Poppins font (was referenced in CSS but not imported) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- EmailJS SDK (frontend email delivery — no server needed) -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background: linear-gradient(
+        135deg,
+        #ffe29f,
+        #ffa99f,
+        #b8f2e6,
+        #cdb4ff,
+        #a0e7ff
+      );
+      background-size: 400% 400%;
+      animation: gradientBG 12s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0%   { background-position: 0%   50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0%   50%; }
+    }
+
+    /* ── Card ── */
+    .card {
+      width: 90%;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 30px;
+      padding: 40px 25px;
+      text-align: center;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.13);
+      animation: popup 0.7s ease;
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes popup {
+      from { opacity: 0; transform: scale(0.8) translateY(20px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0);    }
+    }
+
+    /* ── Emoji ── */
+    .emoji {
+      font-size: 55px;
+      margin-bottom: 15px;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0);   }
+      50%       { transform: translateY(-8px); }
+    }
+
+    /* ── Text ── */
+    h1 {
+      font-size: 2rem;
+      color: #ff5e8a;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: #555;
+      line-height: 1.6;
+      margin-bottom: 30px;
+      font-size: 1rem;
+    }
+
+    /* ── Button area ── */
+    .btn-area {
+      position: relative;
+      width: 100%;
+      height: 200px;
+    }
+
+    /* Both buttons share identical sizing — only color differs */
+    button {
+      position: absolute;
+      border: none;
+      border-radius: 999px;
+      width: 128px;
+      padding: 13px 0;
+      font-size: 0.97rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.11);
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Yes — teal, subtle hover lift only */
+    #yesBtn {
+      background: linear-gradient(135deg, #7bdff2, #b2f7ef);
+      color: #2a6b75;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #yesBtn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 12px 28px rgba(123, 223, 242, 0.5);
+    }
+
+    /* No — peach/pink, slide transition only (JS owns left/top) */
+    #noBtn {
+      background: linear-gradient(135deg, #ffdac1, #ffc8dd);
+      color: #8a4a5a;
+      transition: left 0.22s cubic-bezier(0.25, 1, 0.5, 1),
+                  top  0.22s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    /* ── Thank-you section ── */
+    .thankyou {
+      display: none;
+      animation: fadeIn 0.7s ease;
+    }
+
+    .thankyou h2 {
+      color: #ff5e8a;
+      margin-bottom: 10px;
+      font-size: 1.9rem;
+    }
+
+    .thankyou p {
+      margin-bottom: 0;
+      font-size: 1rem;
+      color: #666;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    /* ── Confetti canvas ── */
+    #confettiCanvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* ── Floating background emojis ── */
+    .floating {
+      position: absolute;
+      font-size: 22px;
+      pointer-events: none;
+      animation: floatUp linear forwards;
+      opacity: 0.8;
+    }
+
+    @keyframes floatUp {
+      0%   { transform: translateY(0)      scale(0.8); opacity: 0; }
+      20%  { opacity: 1; }
+      100% { transform: translateY(-120vh) scale(1.4); opacity: 0; }
+    }
+
+    /* ── Sparkles on Yes ── */
+    .sparkle {
+      position: fixed;
+      font-size: 24px;
+      pointer-events: none;
+      z-index: 998;
+      animation: sparkleAnim 1.4s ease forwards;
+    }
+
+    @keyframes sparkleAnim {
+      0%   { opacity: 1; transform: scale(0.5) translate(0, 0);         }
+      100% { opacity: 0; transform: scale(1.8) translate(var(--tx), var(--ty)); }
+    }
+
+    /* ── Footer ── */
+    footer {
+      position: fixed;
+      bottom: 12px;
+      width: 100%;
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(0, 0, 0, 0.45);
+      letter-spacing: 0.5px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    @media (max-width: 500px) {
+      h1           { font-size: 1.7rem; }
+      button       { padding: 12px 24px; }
+      .btn-area    { height: 230px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="confettiCanvas"></canvas>
+
+  <div class="card">
+
+    <!-- Question screen -->
+    <div id="questionBox">
+
+      <div class="emoji">😊✨</div>
+      <h1>Will you be my friend?</h1>
+      <p>You seem really sweet and I'd love to be friends 🌸</p>
+
+      <div class="btn-area" id="btnArea">
+        <button id="yesBtn">Yes 💖</button>
+        <button id="noBtn">No 🙈</button>
+      </div>
+
+    </div>
+
+    <!-- Thank-you screen -->
+    <div class="thankyou" id="thankyouBox">
+
+      <div class="emoji">🌟✨</div>
+      <h2>That's wonderful! 🎉</h2>
+      <p>Really glad you said yes. Looking forward to it. 😊</p>
+
+    </div>
+
+  </div>
+
+  <footer>Made with love by Nikhil ✨</footer>
+
+  <script>
+    /* ═══════════════════════════════════════════════
+       DOM refs
+    ═══════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════
+       EmailJS — silent background notification
+       ───────────────────────────────────────────────
+       HOW TO SET UP (one-time, ~5 minutes):
+
+       1. Create a free account at https://www.emailjs.com
+          (free tier = 200 emails / month, no credit card)
+
+       2. Add a Gmail service:
+          Dashboard → Email Services → Add New Service → Gmail
+          Sign in with your Google account → copy the Service ID
+
+       3. Create a template:
+          Dashboard → Email Templates → Create New Template
+          Fill in the fields exactly as shown:
+
+            To email : nikhiltaprania@gmail.com
+            Subject  : Someone said Yes! 🎉
+            Body     :
+            ─────────────────────────────────
+            Hey Nikhil! 🎉
+
+            Someone just clicked "Yes" on your friendship app.
+
+            🕐 Time: {{time}}
+
+            Go for it! 🌟
+            ─────────────────────────────────
+          Save → copy the Template ID
+
+       4. Get your Public Key:
+          Dashboard → Account → API Keys → copy Public Key
+
+       5. Paste all three values below.
+
+       6. Restrict usage to your domain (prevents quota abuse):
+          Dashboard → Account → Security → Allowed Origins
+          → add  https://YOUR-USERNAME.github.io
+    ═══════════════════════════════════════════════ */
+    const EMAILJS_PUBLIC_KEY  = "NxbFmiIVuQ_iG5t__";   // e.g. "aBcDeFgH1234"
+    const EMAILJS_SERVICE_ID  = "service_ug2ru2e";   // e.g. "service_abc123"
+    const EMAILJS_TEMPLATE_ID = "template_4witjek";  // e.g. "template_xyz789"
+
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+
+    /* Fires silently — no UI feedback, errors are swallowed */
+    function sendNotification() {
+      const now = new Date().toLocaleString("en-IN", {
+        timeZone:  "Asia/Kolkata",
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      emailjs
+        .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { time: now })
+        .catch(() => { /* intentionally silent */ });
+    }
+
+    const noBtn       = document.getElementById("noBtn");
+    const yesBtn      = document.getElementById("yesBtn");
+    const btnArea     = document.getElementById("btnArea");
+    const questionBox = document.getElementById("questionBox");
+    const thankyouBox = document.getElementById("thankyouBox");
+
+    /* ═══════════════════════════════════════════════
+       Place both buttons symmetrically on load.
+       Both share the same width (set in CSS), so we
+       calculate positions from the centre of btnArea.
+    ═══════════════════════════════════════════════ */
+    function initButtons() {
+      const aw   = btnArea.offsetWidth;
+      const ah   = btnArea.offsetHeight;
+      const bw   = yesBtn.offsetWidth;   // both buttons same width
+      const bh   = yesBtn.offsetHeight;
+      const gap  = 16;
+      const midY = (ah - bh) / 2;
+
+      /* Yes — left of centre */
+      yesBtn.style.left      = ((aw / 2) - bw - gap / 2) + "px";
+      yesBtn.style.top       = midY + "px";
+      yesBtn.style.transform = "none";
+
+      /* No — right of centre */
+      noBtn.style.left      = ((aw / 2) + gap / 2) + "px";
+      noBtn.style.top       = midY + "px";
+      noBtn.style.transform = "none";
+    }
+    window.addEventListener("load", initButtons);
+
+    /* ═══════════════════════════════════════════════
+       No-button escape — moves to a random spot
+       inside btnArea each time the cursor/finger
+       comes within PROX px of its centre.
+    ═══════════════════════════════════════════════ */
+    const PROX = 70;
+
+    function moveNoButton() {
+      const maxX = btnArea.offsetWidth  - noBtn.offsetWidth;
+      const maxY = btnArea.offsetHeight - noBtn.offsetHeight;
+
+      /* Retry a few times to ensure a meaningful jump */
+      let rx, ry, attempts = 0;
+      do {
+        rx = Math.random() * maxX;
+        ry = Math.random() * maxY;
+        attempts++;
+      } while (
+        attempts < 10 &&
+        Math.hypot(rx - noBtn.offsetLeft, ry - noBtn.offsetTop) < 60
+      );
+
+      noBtn.style.left = rx + "px";
+      noBtn.style.top  = ry + "px";
+    }
+
+    /* Proximity on mouse (desktop) */
+    btnArea.addEventListener("mousemove", e => {
+      const r    = btnArea.getBoundingClientRect();
+      const relX = e.clientX - r.left;
+      const relY = e.clientY - r.top;
+      const cx   = noBtn.offsetLeft + noBtn.offsetWidth  / 2;
+      const cy   = noBtn.offsetTop  + noBtn.offsetHeight / 2;
+      if (Math.hypot(relX - cx, relY - cy) < PROX) moveNoButton();
+    });
+
+    /* Proximity on touch (mobile) */
+    btnArea.addEventListener("touchmove", e => {
+      e.preventDefault();
+      const r    = btnArea.getBoundingClientRect();
+      const t    = e.touches[0];
+      const relX = t.clientX - r.left;
+      const relY = t.clientY - r.top;
+      const cx   = noBtn.offsetLeft + noBtn.offsetWidth  / 2;
+      const cy   = noBtn.offsetTop  + noBtn.offsetHeight / 2;
+      if (Math.hypot(relX - cx, relY - cy) < PROX + 20) moveNoButton();
+    }, { passive: false });
+
+    /* Safety net — mouseenter / touchstart */
+    noBtn.addEventListener("mouseenter",  moveNoButton);
+    noBtn.addEventListener("touchstart",  e => { e.preventDefault(); moveNoButton(); });
+
+    /* ═══════════════════════════════════════════════
+       Yes button → thank-you + effects
+    ═══════════════════════════════════════════════ */
+    yesBtn.addEventListener("click", () => {
+      questionBox.style.display = "none";
+      thankyouBox.style.display = "block";
+      burstSparkles();
+      launchConfetti();
+      sendNotification(); // silent background email — no UI trace
+    });
+
+    /* ── Radial sparkle burst from centre ── */
+    function burstSparkles() {
+      const emojis = ["💖", "✨", "🌸", "🎉", "💫", "🌟", "🩷", "🎊"];
+      const cx = window.innerWidth  / 2;
+      const cy = window.innerHeight / 2;
+
+      for (let i = 0; i < 18; i++) {
+        const el    = document.createElement("div");
+        el.classList.add("sparkle");
+        el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+
+        const angle = (Math.PI * 2 * i) / 18 + Math.random() * 0.4;
+        const r     = 80 + Math.random() * 120;
+        el.style.setProperty("--tx", Math.cos(angle) * r + "px");
+        el.style.setProperty("--ty", Math.sin(angle) * r + "px");
+        el.style.left = cx + "px";
+        el.style.top  = cy + "px";
+        el.style.animationDuration = (0.9 + Math.random() * 0.6) + "s";
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1600);
+      }
+    }
+
+    /* ═══════════════════════════════════════════════
+       Confetti — canvas-based, rainbow colours
+    ═══════════════════════════════════════════════ */
+    const canvas = document.getElementById("confettiCanvas");
+    const ctx    = canvas.getContext("2d");
+    let pieces   = [], confRaf;
+
+    const CONF_COLORS = [
+      "#ff5e8a","#ffc8dd","#ffdac1","#b2f7ef",
+      "#7bdff2","#cdb4ff","#fffacd","#b5ead7",
+    ];
+
+    function resizeCanvas() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    function launchConfetti() {
+      pieces = [];
+      for (let i = 0; i < 150; i++) {
+        pieces.push({
+          x:     Math.random() * canvas.width,
+          y:     -10 - Math.random() * canvas.height * 0.5,
+          w:     6  + Math.random() * 8,
+          h:     10 + Math.random() * 10,
+          rot:   Math.random() * Math.PI * 2,
+          dRot:  (Math.random() - 0.5) * 0.2,
+          vx:    (Math.random() - 0.5) * 2.5,
+          vy:    2  + Math.random() * 3.5,
+          color: CONF_COLORS[Math.floor(Math.random() * CONF_COLORS.length)],
+          alpha: 1,
+        });
+      }
+      if (confRaf) cancelAnimationFrame(confRaf);
+      drawConfetti();
+      setTimeout(fadeConfetti, 2800);
+    }
+
+    function drawConfetti() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      pieces.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        p.x   += p.vx;
+        p.y   += p.vy;
+        p.rot += p.dRot;
+        p.vy  += 0.06;
+        if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width; }
+      });
+      confRaf = requestAnimationFrame(drawConfetti);
+    }
+
+    function fadeConfetti() {
+      const t = setInterval(() => {
+        let any = false;
+        pieces.forEach(p => { p.alpha = Math.max(0, p.alpha - 0.03); if (p.alpha > 0) any = true; });
+        if (!any) {
+          clearInterval(t);
+          cancelAnimationFrame(confRaf);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }, 40);
+    }
+
+    /* ═══════════════════════════════════════════════
+       Floating background emojis (unchanged logic)
+    ═══════════════════════════════════════════════ */
+    function createFloatingEmoji() {
+      const emojis   = ["💖", "✨", "🌸", "💕", "💫", "🌟", "🎀", "🦋"];
+      const floating = document.createElement("div");
+      floating.classList.add("floating");
+      floating.textContent          = emojis[Math.floor(Math.random() * emojis.length)];
+      floating.style.left           = Math.random() * window.innerWidth + "px";
+      floating.style.bottom         = "-30px";
+      floating.style.animationDuration = (Math.random() * 3 + 4) + "s";
+      document.body.appendChild(floating);
+      setTimeout(() => floating.remove(), 7000);
+    }
+    setInterval(createFloatingEmoji, 500);
+  </script>
+
+</body>
+</html>
