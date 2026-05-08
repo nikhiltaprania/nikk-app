@@ -195,6 +195,35 @@
       100% { opacity: 0; transform: scale(1.8) translate(var(--tx), var(--ty)); }
     }
 
+    /* ── No-image overlay ── */
+    #noImage {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      background: rgba(0, 0, 0, 0.52);
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;      /* never blocks interaction */
+    }
+    #noImage.show   { display: flex; animation: overlayIn  0.3s ease forwards; }
+    #noImage.hiding {              animation: overlayOut 0.3s ease forwards; }
+
+    @keyframes overlayIn  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes overlayOut { from { opacity: 1; } to { opacity: 0; } }
+
+    #noImage img {
+      max-width: min(300px, 70%);
+      max-height: 42vh;
+      border-radius: 18px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+      animation: imgPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    @keyframes imgPop {
+      from { transform: scale(0.75); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+
     /* ── Footer ── */
     footer {
       position: fixed;
@@ -219,6 +248,11 @@
 <body>
 
   <canvas id="confettiCanvas"></canvas>
+
+  <!-- Image overlay — shown on No click or after 3 attempts -->
+  <div id="noImage">
+    <img src="IMG_20260508_115243.jpg.jpeg" alt="" draggable="false" />
+  </div>
 
   <div class="card">
 
@@ -317,87 +351,171 @@
     const thankyouBox = document.getElementById("thankyouBox");
 
     /* ═══════════════════════════════════════════════
-       Place both buttons symmetrically on load.
-       Both share the same width (set in CSS), so we
-       calculate positions from the centre of btnArea.
+       Image overlay — appears on No click or after
+       every 3rd proximity escape. Auto-hides in 3 s.
+       pointer-events:none so it never blocks the UI.
     ═══════════════════════════════════════════════ */
+    const noImage  = document.getElementById("noImage");
+    let   imgTimer = null;
+    let   imageShown = false;   // once shown, never shown again this session
+
+    function showNoImage() {
+      if (imageShown) return;   // already appeared — ignore all future calls
+      imageShown = true;
+      clearTimeout(imgTimer);
+      noImage.classList.remove("hiding");
+      noImage.classList.add("show");
+      imgTimer = setTimeout(hideNoImage, 3000);
+    }
+
+    function hideNoImage() {
+      noImage.classList.add("hiding");
+      setTimeout(() => noImage.classList.remove("show", "hiding"), 320);
+      imgTimer = null;
+    }
+
+    /* ═══════════════════════════════════════════════
+       No-button — contained inside .card
+       ───────────────────────────────────────────────
+       noBtn is re-parented to .card (position:relative)
+       so its position:absolute coords are card-relative.
+       Physically impossible for it to leave the card.
+    ═══════════════════════════════════════════════ */
+    const card = document.querySelector(".card");
+    const PAD  = 10;   // min gap from every card edge (px)
+    const PROX = 70;   // proximity flee radius (px)
+    let escapeCount  = 0;
+    let moveCooldown = false;
+    let noBtnW = 128, noBtnH = 50;
+
+    /* ── Card-relative bounds — always valid ── */
+    function cardBounds() {
+      return {
+        minX: PAD,
+        minY: PAD,
+        maxX: Math.max(PAD + 1, card.offsetWidth  - noBtnW - PAD),
+        maxY: Math.max(PAD + 1, card.offsetHeight - noBtnH - PAD),
+      };
+    }
+
     function initButtons() {
-      const aw   = btnArea.offsetWidth;
-      const ah   = btnArea.offsetHeight;
-      const bw   = yesBtn.offsetWidth;   // both buttons same width
-      const bh   = yesBtn.offsetHeight;
-      const gap  = 16;
-      const midY = (ah - bh) / 2;
+      const aw = btnArea.offsetWidth;
+      const bw = yesBtn.offsetWidth;
+      const bh = yesBtn.offsetHeight;
 
-      /* Yes — left of centre */
-      yesBtn.style.left      = ((aw / 2) - bw - gap / 2) + "px";
-      yesBtn.style.top       = midY + "px";
+      /* Centre Yes horizontally inside btnArea */
+      yesBtn.style.left      = ((aw - bw) / 2) + "px";
+      yesBtn.style.top       = "10px";
       yesBtn.style.transform = "none";
+      btnArea.style.height   = (bh + 20) + "px";
 
-      /* No — right of centre */
-      noBtn.style.left      = ((aw / 2) + gap / 2) + "px";
-      noBtn.style.top       = midY + "px";
-      noBtn.style.transform = "none";
+      /* Cache No-button dimensions */
+      noBtnW = noBtn.offsetWidth  || 128;
+      noBtnH = noBtn.offsetHeight || 50;
+
+      /* Re-parent noBtn from btnArea → card (position:relative).
+         noBtn's left/top now become card-relative coordinates.
+         Transition is off for two frames to avoid animating the
+         coordinate-system switch. */
+      const { minX, minY, maxX, maxY } = cardBounds();
+      const startX = Math.round((card.offsetWidth  - noBtnW) / 2);
+      const startY = Math.round(card.offsetHeight  - noBtnH - PAD * 4);
+      const initX  = Math.min(Math.max(startX, minX), maxX);
+      const initY  = Math.min(Math.max(startY, minY), maxY);
+
+      noBtn.style.transition = "none";
+      noBtn.style.position   = "absolute";
+      noBtn.style.zIndex     = "10";
+      noBtn.style.left       = initX + "px";
+      noBtn.style.top        = initY + "px";
+      noBtn.style.transform  = "none";
+      card.appendChild(noBtn);   // ← re-parent into card
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        noBtn.style.transition =
+          "left 0.24s cubic-bezier(0.25,1,0.5,1), top 0.24s cubic-bezier(0.25,1,0.5,1)";
+      }));
     }
     window.addEventListener("load", initButtons);
 
-    /* ═══════════════════════════════════════════════
-       No-button escape — moves to a random spot
-       inside btnArea each time the cursor/finger
-       comes within PROX px of its centre.
-    ═══════════════════════════════════════════════ */
-    const PROX = 70;
+    /* ── moveNoButton ──────────────────────────────────────────────
+       Returns TRUE  when the button actually jumps to a new spot.
+       Returns FALSE when the cooldown is active (no move happened).
+       Callers MUST check the return value before counting attempts.
+    ─────────────────────────────────────────────────────────────── */
+    function moveNoButton(bypassCooldown = false) {
+      if (moveCooldown && !bypassCooldown) return false;
+      moveCooldown = true;
+      setTimeout(() => { moveCooldown = false; }, 300);
 
-    function moveNoButton() {
-      const maxX = btnArea.offsetWidth  - noBtn.offsetWidth;
-      const maxY = btnArea.offsetHeight - noBtn.offsetHeight;
+      const { minX, minY, maxX, maxY } = cardBounds();
+      const curX = parseFloat(noBtn.style.left) || minX;
+      const curY = parseFloat(noBtn.style.top)  || minY;
 
-      /* Retry a few times to ensure a meaningful jump */
-      let rx, ry, attempts = 0;
+      /* Sample random positions; retry to guarantee a meaningful jump */
+      let rx, ry, t = 0;
       do {
-        rx = Math.random() * maxX;
-        ry = Math.random() * maxY;
-        attempts++;
-      } while (
-        attempts < 10 &&
-        Math.hypot(rx - noBtn.offsetLeft, ry - noBtn.offsetTop) < 60
-      );
+        rx = minX + Math.random() * (maxX - minX);
+        ry = minY + Math.random() * (maxY - minY);
+        t++;
+      } while (t < 15 && Math.hypot(rx - curX, ry - curY) < 80);
+
+      /* Hard clamp — mathematically impossible to exceed card bounds */
+      rx = Math.min(Math.max(rx, minX), maxX);
+      ry = Math.min(Math.max(ry, minY), maxY);
 
       noBtn.style.left = rx + "px";
       noBtn.style.top  = ry + "px";
+      return true;
+    }
+
+    /* ── Proximity escape ──────────────────────────────────────────
+       escapeCount increments ONLY when the button truly moved.
+       getBoundingClientRect() works regardless of positioning context.
+    ─────────────────────────────────────────────────────────────── */
+    function proximityEscape() {
+      const moved = moveNoButton();
+      if (!moved) return;          // cooldown blocked — don't count it
+      escapeCount++;
+      if (escapeCount % 4 === 0) showNoImage();   // every 4th real escape
     }
 
     /* Proximity on mouse (desktop) */
-    btnArea.addEventListener("mousemove", e => {
-      const r    = btnArea.getBoundingClientRect();
-      const relX = e.clientX - r.left;
-      const relY = e.clientY - r.top;
-      const cx   = noBtn.offsetLeft + noBtn.offsetWidth  / 2;
-      const cy   = noBtn.offsetTop  + noBtn.offsetHeight / 2;
-      if (Math.hypot(relX - cx, relY - cy) < PROX) moveNoButton();
+    document.addEventListener("mousemove", e => {
+      const r  = noBtn.getBoundingClientRect();
+      const cx = r.left + r.width  / 2;
+      const cy = r.top  + r.height / 2;
+      if (Math.hypot(e.clientX - cx, e.clientY - cy) < PROX) proximityEscape();
     });
 
     /* Proximity on touch (mobile) */
-    btnArea.addEventListener("touchmove", e => {
-      e.preventDefault();
-      const r    = btnArea.getBoundingClientRect();
-      const t    = e.touches[0];
-      const relX = t.clientX - r.left;
-      const relY = t.clientY - r.top;
-      const cx   = noBtn.offsetLeft + noBtn.offsetWidth  / 2;
-      const cy   = noBtn.offsetTop  + noBtn.offsetHeight / 2;
-      if (Math.hypot(relX - cx, relY - cy) < PROX + 20) moveNoButton();
-    }, { passive: false });
+    document.addEventListener("touchmove", e => {
+      const t  = e.touches[0];
+      const r  = noBtn.getBoundingClientRect();
+      const cx = r.left + r.width  / 2;
+      const cy = r.top  + r.height / 2;
+      if (Math.hypot(t.clientX - cx, t.clientY - cy) < PROX + 20) proximityEscape();
+    }, { passive: true });
 
-    /* Safety net — mouseenter / touchstart */
-    noBtn.addEventListener("mouseenter",  moveNoButton);
-    noBtn.addEventListener("touchstart",  e => { e.preventDefault(); moveNoButton(); });
+    /* Direct click on No → show image immediately + flee */
+    noBtn.addEventListener("click", () => {
+      showNoImage();
+      moveNoButton(true);
+    });
+
+    /* Direct tap on No (mobile) → same */
+    noBtn.addEventListener("touchstart", e => {
+      e.preventDefault();
+      showNoImage();
+      moveNoButton(true);
+    }, { passive: false });
 
     /* ═══════════════════════════════════════════════
        Yes button → thank-you + effects
     ═══════════════════════════════════════════════ */
     yesBtn.addEventListener("click", () => {
       questionBox.style.display = "none";
+      noBtn.style.display       = "none";   // re-parented to card — must hide explicitly
       thankyouBox.style.display = "block";
       burstSparkles();
       launchConfetti();
