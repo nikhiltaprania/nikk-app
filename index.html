@@ -497,17 +497,18 @@
       if (Math.hypot(t.clientX - cx, t.clientY - cy) < PROX + 20) proximityEscape();
     }, { passive: true });
 
-    /* Direct click on No → show image immediately + flee */
+    /* Direct click / tap on No → flee and count as an escape attempt.
+       Image appears only when the shared escapeCount reaches a multiple
+       of 4 — same rule as proximity hovers on desktop. */
     noBtn.addEventListener("click", () => {
-      showNoImage();
-      moveNoButton(true);
+      const moved = moveNoButton(true);
+      if (moved) { escapeCount++; if (escapeCount % 4 === 0) showNoImage(); }
     });
 
-    /* Direct tap on No (mobile) → same */
     noBtn.addEventListener("touchstart", e => {
       e.preventDefault();
-      showNoImage();
-      moveNoButton(true);
+      const moved = moveNoButton(true);
+      if (moved) { escapeCount++; if (escapeCount % 4 === 0) showNoImage(); }
     }, { passive: false });
 
     /* ═══════════════════════════════════════════════
